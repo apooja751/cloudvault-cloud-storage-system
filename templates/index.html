@@ -1,0 +1,244 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CloudVault | Cloud File Storage</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"
+            defer></script>
+</head>
+
+<body>
+
+<div class="app-container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-icon">☁</div>
+            <span>CloudVault</span>
+        </div>
+
+        <p class="menu-label">WORKSPACE</p>
+
+        <nav class="navigation">
+            <a href="#dashboard" class="nav-link active">
+                <span>▦</span> Dashboard
+            </a>
+
+            <a href="#upload" class="nav-link">
+                <span>↑</span> Upload Files
+            </a>
+
+            <a href="#files" class="nav-link">
+                <span>▤</span> My Files
+            </a>
+        </nav>
+
+        <div class="storage-info">
+            <div class="storage-icon">☁</div>
+            <h3>Cloud Storage</h3>
+            <p>Your documents are ready to be stored securely.</p>
+            <span class="storage-provider">Powered by Supabase Storage</span>
+        </div>
+
+        <div class="sidebar-bottom">
+            <span class="status-dot"></span>
+            Application Online
+        </div>
+
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="dashboard">
+
+        <header class="topbar">
+
+            <div>
+                <p class="breadcrumb">Workspace / Dashboard</p>
+                <h1>Cloud Storage Dashboard</h1>
+                <p class="subtitle">
+                    Manage and organize your documents in one place.
+                </p>
+            </div>
+
+            <div class="profile">
+                <div class="profile-avatar">CV</div>
+                <div>
+                    <strong>My Workspace</strong>
+                    <small>Personal Account</small>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- Welcome -->
+        <section class="welcome-banner">
+
+            <div>
+                <span class="welcome-tag">YOUR CLOUD WORKSPACE</span>
+                <h2>Welcome to CloudVault 👋</h2>
+                <p>
+                    Upload, manage and access your important documents
+                    from one secure workspace.
+                </p>
+            </div>
+
+            <div class="banner-icon">☁</div>
+
+        </section>
+
+        <!-- Statistics -->
+        <section class="stats-grid">
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span>Total Files</span>
+                    <span class="stat-icon blue">▤</span>
+                </div>
+                <h2 id="totalFiles">0</h2>
+                <p>Selected documents</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span>Selected Storage</span>
+                    <span class="stat-icon purple">◫</span>
+                </div>
+                <h2 id="storageUsed">0 Bytes</h2>
+                <p>Current selection size</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span>Cloud Provider</span>
+                    <span class="stat-icon orange">☁</span>
+                </div>
+                <h2 class="provider-name">Supabase Storage</h2>
+                <p>Cloud storage provider</p>
+            </div>
+
+        </section>
+
+        <!-- Upload -->
+        <section class="content-card upload-section" id="upload">
+
+            <div class="section-heading">
+                <div>
+                    <h2>Upload Documents</h2>
+                    <p>Select documents from your computer.</p>
+                </div>
+                <span class="section-icon">↑</span>
+            </div>
+
+            <div class="upload-box">
+
+                <div class="upload-cloud">☁</div>
+
+                <h3>Choose files to upload</h3>
+
+                <p class="upload-description">
+                    Browse your computer and select your documents.
+                </p>
+
+                <input
+                    type="file"
+                    id="fileInput"
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    multiple
+                >
+
+                <label for="fileInput" class="upload-button">
+                    <span>＋</span> Browse Files
+                </label>
+
+                <p class="file-hint">
+                    PDF, DOC, DOCX, TXT, JPG and PNG · Maximum 10 MB per file
+                </p>
+
+            </div>
+
+            <div id="uploadMessage"
+                 class="message"
+                 role="status"
+                 aria-live="polite"></div>
+
+            <!-- Selected files -->
+            <div id="selectedFilesSection"
+                 class="selected-section"
+                 hidden>
+
+                <div class="selected-heading">
+                    <h3>Selected Files</h3>
+
+                    <button type="button"
+                            id="clearFiles"
+                            class="clear-button">
+                        Clear All
+                    </button>
+                </div>
+
+                <div id="selectedFilesList"
+                     class="selected-files-list"></div>
+
+                <button type="button"
+                        id="uploadButton"
+                        class="upload-button">
+                    Upload to Cloud
+                </button>
+
+                <p class="upload-note">
+                    Upload your selected documents securely to Supabase Storage.
+                </p>
+
+            </div>
+
+        </section>
+
+        <!-- Documents -->
+        <section class="content-card files-section" id="files">
+
+            <div class="section-heading">
+                <div>
+                    <h2>My Documents</h2>
+                    <p>View and manage your cloud-stored documents.</p>
+                </div>
+            </div>
+
+            <div class="search-box">
+                <span>⌕</span>
+                <input type="search"
+                       id="searchInput"
+                       placeholder="Search your documents...">
+            </div>
+
+            <div id="documentList" class="document-list">
+
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">▤</div>
+                    <h3>No documents uploaded</h3>
+                    <p>Your cloud documents will appear here.</p>
+                </div>
+
+            </div>
+
+        </section>
+
+        <footer>
+            <p>© 2026 CloudVault. Built with Python, Flask and Supabase Storage.</p>
+            <p>Secure Cloud File Management</p>
+        </footer>
+
+    </main>
+
+</div>
+
+</body>
+</html>
