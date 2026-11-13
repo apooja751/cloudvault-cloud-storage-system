@@ -27,13 +27,19 @@ def get_bucket_name():
     return bucket_name
 
 
-def upload_file(file, filename):
+def upload_file(file, filename, category="Documents"):
     client = get_supabase_client()
 
+    allowed_categories = ["Documents", "Images", "Others"]
+
+    if category not in allowed_categories:
+        raise ValueError("Invalid file category")
+
     file_content = file.read()
+    storage_path = f"{category}/{filename}"
 
     client.storage.from_(get_bucket_name()).upload(
-        path=filename,
+        path=storage_path,
         file=file_content,
         file_options={
             "content-type": file.content_type or "application/octet-stream",
@@ -46,17 +52,35 @@ def upload_file(file, filename):
 
 def list_files():
     client = get_supabase_client()
+    bucket = client.storage.from_(get_bucket_name())
 
-    objects = client.storage.from_(get_bucket_name()).list()
+    categories = ["Documents", "Images", "Others"]
+    all_files = []
 
-    return [
-        {
-            "Key": item["name"],
-            "Size": (item.get("metadata") or {}).get("size", 0)
-        }
-        for item in objects
-        if item.get("name")
-    ]
+    # Include older files stored in the bucket root
+    root_objects = bucket.list()
+
+    for item in root_objects:
+        if item.get("name") and item.get("metadata"):
+            all_files.append({
+                "Key": item["name"],
+                "Size": (item.get("metadata") or {}).get("size", 0),
+                "Category": "Uncategorized"
+            })
+
+    # List files inside category folders
+    for category in categories:
+        objects = bucket.list(category)
+
+        for item in objects:
+            if item.get("name") and item.get("metadata"):
+                all_files.append({
+                    "Key": f"{category}/{item['name']}",
+                    "Size": (item.get("metadata") or {}).get("size", 0),
+                    "Category": category
+                })
+
+    return all_files
 
 
 def delete_file(filename):

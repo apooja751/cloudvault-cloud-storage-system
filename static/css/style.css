@@ -1010,3 +1010,36 @@ footer p {
         font-size: 16px;
     }
 }
+/* Category organization */
+.category-selection,
+.category-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.category-selection label,
+.category-filter label {
+    font-weight: 600;
+    color: #334155;
+}
+
+.category-selection select,
+.category-filter select {
+    width: 100%;
+    max-width: 320px;
+    padding: 12px;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.category-selection select:focus,
+.category-filter select:focus {
+    outline: 2px solid #647fe8;
+    border-color: #647fe8;
+}

@@ -27,16 +27,19 @@ app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY")
 
 if not app.secret_key:
-    raise RuntimeError("APP_SECRET_KEY is missing from .env")
+    raise RuntimeError("APP_SECRET_KEY is missing from environment variables.")
 
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV") == "production"
 
 ALLOWED_EXTENSIONS = {
     "pdf", "doc", "docx", "txt",
     "jpg", "jpeg", "png"
 }
+
+ALLOWED_CATEGORIES = ["Documents", "Images", "Others"]
 
 
 def allowed_file(filename):
@@ -44,6 +47,28 @@ def allowed_file(filename):
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
     )
+
+
+def valid_storage_path(filename):
+    """Allow legacy root files or files inside approved category folders."""
+    if not filename:
+        return False
+
+    parts = filename.split("/")
+
+    if len(parts) == 1:
+        return secure_filename(parts[0]) == parts[0] and bool(parts[0])
+
+    if len(parts) == 2:
+        category, stored_name = parts
+
+        return (
+            category in ALLOWED_CATEGORIES
+            and bool(stored_name)
+            and secure_filename(stored_name) == stored_name
+        )
+
+    return False
 
 
 def login_required(api=False):
@@ -137,14 +162,21 @@ def upload():
     if not safe_name or not allowed_file(safe_name):
         return jsonify({"error": "File type not allowed"}), 400
 
+    category = request.form.get("category", "Documents")
+
+    if category not in ALLOWED_CATEGORIES:
+        return jsonify({"error": "Invalid category"}), 400
+
     unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+    storage_path = f"{category}/{unique_name}"
 
     try:
-        upload_file(file, unique_name)
+        upload_file(file, unique_name, category)
 
         return jsonify({
             "message": "File uploaded successfully",
-            "filename": unique_name
+            "filename": storage_path,
+            "category": category
         }), 201
 
     except Exception:
@@ -161,7 +193,8 @@ def files():
         result = [
             {
                 "filename": item["Key"],
-                "size": item["Size"]
+                "size": item["Size"],
+                "category": item.get("Category", "Uncategorized")
             }
             for item in objects
         ]
@@ -176,16 +209,19 @@ def files():
 @app.route("/download/<path:filename>", methods=["GET"])
 @login_required(api=True)
 def download(filename):
-    if filename != secure_filename(filename):
+    if not valid_storage_path(filename):
         return jsonify({"error": "Invalid filename"}), 400
 
     try:
         response = download_file(filename)
 
+        stored_name = filename.split("/")[-1]
+        original_name = stored_name.split("_", 1)[-1]
+
         return send_file(
             BytesIO(response["Body"].read()),
             as_attachment=True,
-            download_name=filename.split("_", 1)[-1]
+            download_name=original_name
         )
 
     except Exception:
@@ -196,7 +232,7 @@ def download(filename):
 @app.route("/delete/<path:filename>", methods=["DELETE"])
 @login_required(api=True)
 def delete(filename):
-    if filename != secure_filename(filename):
+    if not valid_storage_path(filename):
         return jsonify({"error": "Invalid filename"}), 400
 
     try:

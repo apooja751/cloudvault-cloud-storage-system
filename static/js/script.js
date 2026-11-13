@@ -1,6 +1,5 @@
 
 document.addEventListener("DOMContentLoaded", () => {
-
     const fileInput = document.getElementById("fileInput");
     const uploadMessage = document.getElementById("uploadMessage");
     const selectedFilesSection = document.getElementById("selectedFilesSection");
@@ -11,6 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearFilesButton = document.getElementById("clearFiles");
     const searchInput = document.getElementById("searchInput");
     const uploadButton = document.getElementById("uploadButton");
+    const categorySelect = document.getElementById("categorySelect");
+    const categoryFilter = document.getElementById("categoryFilter");
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -19,15 +20,20 @@ document.addEventListener("DOMContentLoaded", () => {
         "jpg", "jpeg", "png"
     ];
 
+    const allowedCategories = ["Documents", "Images", "Others"];
+
     let selectedFiles = [];
     let cloudFiles = [];
 
     // Format file sizes
     function formatSize(bytes) {
-        if (bytes === 0) return "0 Bytes";
+        if (!bytes || bytes === 0) return "0 Bytes";
 
         const units = ["Bytes", "KB", "MB", "GB"];
-        const index = Math.floor(Math.log(bytes) / Math.log(1024));
+        const index = Math.min(
+            Math.floor(Math.log(bytes) / Math.log(1024)),
+            units.length - 1
+        );
 
         return (
             (bytes / Math.pow(1024, index)).toFixed(2) +
@@ -50,7 +56,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Handle file selection
     fileInput.addEventListener("change", (event) => {
-
         const files = Array.from(event.target.files);
 
         if (files.length === 0) return;
@@ -59,7 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const rejected = [];
 
         files.forEach(file => {
-
             if (!isAllowedFile(file)) {
                 rejected.push(file.name + " (unsupported format)");
                 return;
@@ -103,7 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Display selected files
     function renderSelectedFiles() {
-
         selectedFilesList.innerHTML = "";
 
         const totalSize = selectedFiles.reduce(
@@ -116,7 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedFilesSection.hidden = selectedFiles.length === 0;
 
         selectedFiles.forEach((file, index) => {
-
             const row = document.createElement("div");
             row.className = "file-row";
 
@@ -151,18 +153,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Clear selected files
     clearFilesButton.addEventListener("click", () => {
-
         selectedFiles = [];
-
         renderSelectedFiles();
         showMessage("All selected files cleared.", "success");
     });
 
-    // Upload files to Flask and Cloudflare R2
+    // Upload files with selected category
     uploadButton.addEventListener("click", async () => {
-
         if (selectedFiles.length === 0) {
             showMessage("Please select files first.", "error");
+            return;
+        }
+
+        const category = categorySelect.value;
+
+        if (!allowedCategories.includes(category)) {
+            showMessage("Please select a valid category.", "error");
             return;
         }
 
@@ -174,14 +180,13 @@ document.addEventListener("DOMContentLoaded", () => {
         uploadButton.textContent = "Uploading...";
 
         try {
-
             for (const file of filesToUpload) {
-
                 const formData = new FormData();
+
                 formData.append("file", file);
+                formData.append("category", category);
 
                 try {
-
                     const response = await fetch("/upload", {
                         method: "POST",
                         body: formData
@@ -198,7 +203,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
 
                     uploadedCount++;
-
                     renderSelectedFiles();
 
                 } catch (error) {
@@ -208,7 +212,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (uploadedCount > 0) {
                 showMessage(
-                    uploadedCount + " file(s) uploaded successfully.",
+                    uploadedCount + " file(s) uploaded to " +
+                    category + " successfully.",
                     "success"
                 );
 
@@ -228,11 +233,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Load files stored in Cloudflare R2
+    // Load files stored in Supabase Storage
     async function loadCloudFiles() {
-
         try {
-
             const response = await fetch("/files");
             const result = await response.json();
 
@@ -244,33 +247,38 @@ document.addEventListener("DOMContentLoaded", () => {
             renderCloudFiles();
 
         } catch (error) {
-
             cloudFiles = [];
             renderCloudFiles();
 
             const message = document.createElement("p");
             message.className = "file-size";
             message.textContent =
-                "Cloud storage is not connected yet. " +
-                "Complete R2 setup to view uploaded documents.";
+                "Unable to load cloud files. Please refresh the page.";
 
             documentList.appendChild(message);
+            console.error("File loading error:", error);
         }
     }
 
     // Display cloud files
     function renderCloudFiles() {
-
         documentList.innerHTML = "";
 
         const query = searchInput.value.toLowerCase().trim();
+        const selectedCategory = categoryFilter.value;
 
-        const filteredFiles = cloudFiles.filter(file =>
-            file.filename.toLowerCase().includes(query)
-        );
+        const filteredFiles = cloudFiles.filter(file => {
+            const matchesSearch =
+                file.filename.toLowerCase().includes(query);
+
+            const matchesCategory =
+                selectedCategory === "all" ||
+                file.category === selectedCategory;
+
+            return matchesSearch && matchesCategory;
+        });
 
         if (filteredFiles.length === 0) {
-
             const empty = document.createElement("div");
             empty.className = "empty-state";
 
@@ -285,32 +293,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
             empty.append(heading, description);
             documentList.appendChild(empty);
-
             return;
         }
 
         filteredFiles.forEach(file => {
-
             const row = document.createElement("div");
             row.className = "file-row document-row";
 
             const details = document.createElement("div");
             details.className = "file-details";
 
+            const storedName = file.filename.split("/").pop();
+
+            const originalName = storedName.split("_").slice(1).join("_")
+                || storedName;
+
             const name = document.createElement("div");
             name.className = "file-name";
-            name.textContent = file.filename.split("_").slice(1).join("_")
-                || file.filename;
+            name.textContent = originalName;
 
             const size = document.createElement("div");
             size.className = "file-size";
-            size.textContent = formatSize(file.size);
+            size.textContent =
+                formatSize(file.size) + " · " +
+                (file.category || "Uncategorized");
 
             details.append(name, size);
 
             const actions = document.createElement("div");
             actions.className = "file-actions";
 
+            // Download button
             const downloadButton = document.createElement("button");
             downloadButton.type = "button";
             downloadButton.className = "remove-file";
@@ -321,13 +334,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     "/download/" + encodeURIComponent(file.filename);
             });
 
+            // Delete button
             const deleteButton = document.createElement("button");
             deleteButton.type = "button";
             deleteButton.className = "remove-file";
             deleteButton.textContent = "Delete";
 
             deleteButton.addEventListener("click", async () => {
-
                 if (!confirm("Are you sure you want to delete this file?")) {
                     return;
                 }
@@ -335,7 +348,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 deleteButton.disabled = true;
 
                 try {
-
                     const response = await fetch(
                         "/delete/" + encodeURIComponent(file.filename),
                         { method: "DELETE" }
@@ -366,10 +378,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Search cloud files
     searchInput.addEventListener("input", renderCloudFiles);
 
+    // Filter cloud files by category
+    categoryFilter.addEventListener("change", renderCloudFiles);
+
     // Initialize dashboard
     renderSelectedFiles();
     loadCloudFiles();
 
     console.log("CloudVault frontend initialized successfully.");
-
 });
